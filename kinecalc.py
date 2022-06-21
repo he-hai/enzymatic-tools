@@ -1,6 +1,6 @@
 #%%
 import numpy as np 
-from lmfit import minimize, Parameters
+from lmfit import Model
 import pandas as pd 
 import pint 
 import matplotlib.pyplot as plt 
@@ -41,8 +41,13 @@ df = pd.read_excel(
 df= df.stack().reset_index()
 df.rename(columns={'level_1':'replicates',0:'slope'},inplace=True)
 
-S = Q_(df['substrate'].to_numpy(),'mM').to('uM')
-v = Q_(df['slope'].to_numpy(),'1/min')/(Enadph*l)
+S = Q_(df['substrate'].to_numpy(),'mM')
+S = S.to('uM')  # change to unit for plot if different
+# ub = Q_(0.1,'mM')  # upper bound for model calculations, included
+# lb = Q_(0.005, 'mM')  # lower bound for model calculations, included
+
+v = Q_(df['slope'].to_numpy(),'1/min')/(Enadph*l)  # initial velocity
+t = (v/E).to('1/s')  # turn over
 
 # check with Lineaweaver Burk Plot 
 sns.regplot(
@@ -50,71 +55,77 @@ sns.regplot(
 )
 #%%
 '''Main function/calculations'''
-def MMfunc(params, E, S, v=None):
+def MMfunc(S, kcat, Km):
     '''Michaelis–Menten kinetics, first-order  
     :params kcat: turnover number
     :params Km: Michaelis constant
     :params S: substrate concentration
-    :params v: reaction rate
-    :params E: enzyme concentration
     '''
-    kcat = params['kcat']
-    Km = params['Km']
+    return kcat * S / ( Km + S )
 
-    model = kcat * E * S / (Km + S)
-    if v is None:
-        return model
-    return model - v
+model = Model(MMfunc, nan_policy='omit')
+model.set_param_hint('kcat',value=10,min=0)  # in s-1
+model.set_param_hint('Km',value=1e-4,min=0)  # in M
 
-params = Parameters()
-params.add('kcat', value=10, min=0)  # in s-1
-params.add('Km', value=1e-4, min=0)  # in M
-
-def kinetics_calc(E, S, v):
-    kinetics_fit = minimize(
-        MMfunc, params, args=(E, S,), kws={'v': v},
-        nan_policy='omit'
+def kinetics_calc(S, t):
+    result = model.fit(t, S=S)
+    print(result.fit_report())
+    Km = Q_(
+        result.params['Km'].value,'M'
+    ).plus_minus(
+        result.params['Km'].stderr
     )
-    Km = Q_(kinetics_fit.params['Km'].value,'M')
-    kcat = Q_(kinetics_fit.params['kcat'].value,'1/s')
-    chisqr = kinetics_fit.chisqr
+    kcat = Q_(
+        result.params['kcat'].value,'1/s'
+    ).plus_minus(
+        result.params['kcat'].stderr
+    )
+    chisqr = result.chisqr
     return Km, kcat, chisqr
 
 def kinetics_report(
-    E, S, v,
+    S, t,
     enzyme=None, # name
     substrate=None,
+    lb = Q_(0,'M'),
+    ub = Q_(np.Infinity,'M'), 
     **kwg
 ):
-    E_ = E.to('M').magnitude
-    S_ = S.to('M').magnitude
+    # E_ = E.to('M').magnitude
+    indx = np.where((S>=lb) & (S<=ub))
+    S_ = S[indx].to('M').magnitude
     S_u = S.units
-    v_ = v.to('M/s').magnitude
+    # v_ = v.to('M/s').magnitude
+    t_ = t[indx].magnitude
     
-    Km, kcat, chisqr = kinetics_calc(E_, S_, v_)
+    Km, kcat, chisqr = kinetics_calc(S_, t_)
+    cateff = kcat/Km
+    Km = Km.to(S_u)
 
     fig, ax = plt.subplots(figsize=(8,6))
     x_up = 1.2 * S.max()
     x = np.linspace(0,x_up,100)
-    y = (kcat * E * x / (Km + x)).to(ureg('uM/min'))
-    ax.scatter(S, v, c='orange')
-    ax.plot(x, y,c='blue')
+    y = MMfunc(x, kcat.value, Km.value)
+    ax.scatter(S, t, c='orange')
+    ax.plot(x, y, c='blue')
 
-    ax.hlines(kcat*E, 0, x_up, colors='grey', linestyles='--')
-    ax.vlines(Km, 0, kcat*E/2,colors='grey',linestyles='--')
-    ax.text(1.2*Km, kcat*E/4,
-       '$\chi^2$: ' f'{chisqr:.3e}\n' 
-       '$K_m$: ' f'{Km.to(S_u):.2f~P}\n' 
-       '$k_{cat}$: ' f'{kcat:.2f~P}\n' 
-       '$k_{cat} / K_m$: ' f'{kcat/Km:.2e~P}',
+    ax.hlines(kcat.value, 0, x_up, colors='grey', linestyles='--')
+    ax.vlines(Km.value, 0, kcat.value/2,colors='grey',linestyles='--')
+    ax.text(1.5*Km.value, kcat.value/4,
+       '$\chi^2$: ' f'{chisqr:.3e}\n'
+       '$K_m$: ' f'{Km.magnitude:.2f} {Km.units:~P}\n'
+       '$k_{cat}$: ' f'{kcat.magnitude:.2f} {kcat.units:~P}\n'
+       '$k_{cat} / K_m$: ' f'{cateff.magnitude:.2e} {cateff.units:~P}' ,
+       fontsize=15,
        )
     ax.title.set_text(f'{enzyme} - {substrate}')
     ax.set(xlabel=f'[{substrate}] ({S_u})', 
-           ylabel='Activity ($\mu$M/min)')
+           ylabel='Turn over ($s^{-1}$)')
     ax.set_xlim(xmin=0)
     ax.set_ylim(ymin=0)
     
     fig.savefig(f'{enzyme}-{substrate} kinetics', dpi=300)
     fig.show()
 
-kinetics_report(E, S, v, Enzyme, Substrate)
+kinetics_report(S, t, Enzyme, Substrate)
+# %%
