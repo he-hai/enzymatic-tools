@@ -22,38 +22,7 @@ plt.rcParams['legend.fontsize'] = 13
 plt.rcParams.update({'mathtext.default': 'regular'})
 plt.rcParams['axes.axisbelow'] = True
 plt.rcParams['savefig.bbox']='tight'
-#%%
-'''Region for inputs'''
-Enzyme = 'enzyme name'
-Substrate = 'Substrate'
-# S = Q_(np.array([0.5, 0.25, 0.125, 0.05, 5]),'mM')
-# v = Q_(np.array([0.249, 0.126, 0.058, 0.027, 0.357]),'mM/min')
-E = Q_(0.02,'uM')
 
-Enadph = Q_(6220,'1/(M*cm)')  # M-1 cm-1
-l = Q_(1,'cm')  # cm
-
-df = pd.read_excel(
-    'Demo-data.xlsx',sheet_name='Sheet1',
-    engine='openpyxl', index_col=0,
-)
-
-df= df.stack().reset_index()
-df.rename(columns={'level_1':'replicates',0:'slope'},inplace=True)
-
-S = Q_(df['substrate'].to_numpy(),'mM')
-S = S.to('uM')  # change to unit for plot if different
-# ub = Q_(0.1,'mM')  # upper bound for model calculations, included
-# lb = Q_(0.005, 'mM')  # lower bound for model calculations, included
-
-v = Q_(df['slope'].to_numpy(),'1/min')/(Enadph*l)  # initial velocity
-t = (v/E).to('1/s')  # turn over
-
-# check with Lineaweaver Burk Plot 
-sns.regplot(
-    x=1/S,y=1/v,
-)
-#%%
 '''Main function/calculations'''
 def MMfunc(S, kcat, Km):
     '''Michaelis–Menten kinetics, first-order  
@@ -127,5 +96,36 @@ def kinetics_report(
     fig.savefig(f'{enzyme}-{substrate} kinetics', dpi=300)
     fig.show()
 
+#%%
+'''Region for inputs'''
+Enzyme = 'enzyme name'
+Substrate = 'Substrate'
+# S = Q_(np.array([0.5, 0.25, 0.125, 0.05, 5]),'mM')
+# v = Q_(np.array([0.249, 0.126, 0.058, 0.027, 0.357]),'mM/min')
+E = Q_(0.02,'uM')
+
+Enadph = Q_(6220,'1/(M*cm)')  # M-1 cm-1
+l = Q_(1,'cm')  # cm
+
+df = pd.read_excel(
+    'Demo-data.xlsx',sheet_name='Sheet1',
+    engine='openpyxl', index_col=0,
+)
+
+df= df.stack().reset_index()
+df.rename(columns={'level_1':'replicates',0:'slope'},inplace=True)
+
+S = Q_(df['substrate'].to_numpy(),'mM')
+S = S.to('uM')  # change to unit for plot if different
+# ub = Q_(0.1,'mM')  # upper bound for model calculations, included
+# lb = Q_(0.005, 'mM')  # lower bound for model calculations, included
+
+v = Q_(df['slope'].to_numpy(),'1/min')/(Enadph*l)  # initial velocity
+t = (v/E).to('1/s')  # turn over
+
+# check with Lineaweaver Burk Plot 
+sns.regplot(
+    x=1/S,y=1/v,
+)
+
 kinetics_report(S, t, Enzyme, Substrate)
-# %%
