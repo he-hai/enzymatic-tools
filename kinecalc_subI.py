@@ -1,5 +1,5 @@
-###*****
-# For calculating kinetics with Michaelis-menten model
+###****
+# For calculating kinetics with substrate inhibition
 ###****
 #%%
 import numpy as np 
@@ -27,17 +27,19 @@ plt.rcParams['axes.axisbelow'] = True
 plt.rcParams['savefig.bbox']='tight'
 
 '''Main function/calculations'''
-def MMfunc(S, kcat, Km):
-    '''Michaelis–Menten kinetics, first-order  
-    :params kcat: turnover number
-    :params Km: Michaelis constant
+def MMfunc(S, kcat, Km, Ki):
+    '''Substrate inibition model 
     :params S: substrate concentration
+    :params kcat: turnover number
+    :params Km: Michaelis-Menten constant
+    :params Ki: dissociation constant
     '''
-    return kcat * S / ( Km + S )
+    return kcat * S / (Km + S * (1 + S / Ki))
 
 model = Model(MMfunc, nan_policy='omit')
 model.set_param_hint('kcat',value=10,min=0)  # in s-1
 model.set_param_hint('Km',value=1e-4,min=0)  # in M
+model.set_param_hint('Ki',value=1e-2,min=0)  # in M
 
 def kinetics_calc(S, t):
     result = model.fit(t, S=S)
@@ -52,8 +54,13 @@ def kinetics_calc(S, t):
     ).plus_minus(
         result.params['kcat'].stderr
     )
+    Ki = Q_(
+        result.params['Ki'].value,'M'
+    ).plus_minus(
+        result.params['Ki'].stderr
+    )
     chisqr = result.chisqr
-    return Km, kcat, chisqr
+    return Km, kcat, Ki, chisqr
 
 def kinetics_report(
     S, t,
@@ -70,23 +77,25 @@ def kinetics_report(
     # v_ = v.to('M/s').magnitude
     t_ = t[indx].magnitude
     
-    Km, kcat, chisqr = kinetics_calc(S_, t_)
+    Km, kcat, Ki, chisqr = kinetics_calc(S_, t_)
     cateff = kcat/Km
     Km = Km.to(S_u)
+    Ki = Ki.to(S_u)
 
     fig, ax = plt.subplots(figsize=(8,6))
     x_up = 1.2 * S.max()
     x = np.linspace(0,x_up,100)
-    y = MMfunc(x, kcat.value, Km.value)
+    y = MMfunc(x, kcat.value, Km.value, Ki.value)
     ax.scatter(S, t, c='orange')
     ax.plot(x, y, c='blue')
 
     ax.hlines(kcat.value, 0, x_up, colors='grey', linestyles='--')
     ax.vlines(Km.value, 0, kcat.value/2,colors='grey',linestyles='--')
-    ax.text(1.5*Km.value, kcat.value/4,
+    ax.text(2*Km.value, kcat.value/5,
        '$\chi^2$: ' f'{chisqr:.3e}\n'
        '$K_m$: ' f'{Km.magnitude:.2f} {Km.units:~P}\n'
        '$k_{cat}$: ' f'{kcat.magnitude:.2f} {kcat.units:~P}\n'
+       '$K_i$: ' f'{Ki.magnitude:.2f} {Ki.units:~P}\n'
        '$k_{cat} / K_m$: ' f'{cateff.magnitude:.2e} {cateff.units:~P}' ,
        fontsize=15,
        )
