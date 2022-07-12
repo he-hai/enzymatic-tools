@@ -81,9 +81,14 @@ def kinetics_report(
     ax.scatter(S, t, c='orange')
     ax.plot(x, y, c='blue')
 
-    ax.hlines(kcat.value, 0, x_up, colors='grey', linestyles='--')
-    ax.vlines(Km.value, 0, kcat.value/2,colors='grey',linestyles='--')
-    ax.text(1.5*Km.value, kcat.value/4,
+    _a = 0.5 * S.max() 
+    _b = 0.1 * t.max()
+    if Km <= S.max(): 
+        ax.hlines(kcat.value, 0, x_up, colors='grey', linestyles='--')
+        ax.vlines(Km.value, 0, kcat.value/2,colors='grey',linestyles='--')
+        _a = 1.5 * Km.value
+        _b = kcat.value / 4
+    ax.text(_a, _b,
        '$\chi^2$: ' f'{chisqr:.3e}\n'
        '$K_m$: ' f'{Km.magnitude:.2f} {Km.units:~P}\n'
        '$k_{cat}$: ' f'{kcat.magnitude:.2f} {kcat.units:~P}\n'
