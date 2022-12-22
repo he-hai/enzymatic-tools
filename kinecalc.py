@@ -22,7 +22,7 @@ plt.rcParams['axes.titlesize'] = 24
 plt.rcParams['axes.labelsize'] = 20
 plt.rcParams['legend.title_fontsize'] = 15
 plt.rcParams['legend.fontsize'] = 13
-plt.rcParams.update({'mathtext.default': 'regular'})
+# plt.rcParams.update({'mathtext.default': 'regular'})
 plt.rcParams['axes.axisbelow'] = True
 plt.rcParams['savefig.bbox']='tight'
 
@@ -97,7 +97,7 @@ def kinetics_report(
        )
     ax.title.set_text(f'{enzyme} - {substrate}')
     ax.set(xlabel=f'[{substrate}] ({S_u})', 
-           ylabel='Turn over ($s^{-1}$)')
+           ylabel='$v_0/[E]\ (s^{-1}$)')
     ax.set_xlim(xmin=0)
     ax.set_ylim(ymin=0)
     
