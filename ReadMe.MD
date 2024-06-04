@@ -16,3 +16,6 @@ The scripts have been tested in an environment with following packages:
 - openpyxl 3.0.6
 - scipy 1.4.1
 - pint 0.17
+
+### Usage
+The scripts take directly raw data, such as slope (in the unit of _1/min_), enzyme concentration (in molar concentrations, _$\mu$M_ ), extinction coefficient. To use the script, please adapt these input directly in the script. Raw data can be in the format as in the [Demo-data.xlsx](./Demo-data.xlsx). `pint` will handle all the unit conversions, so please adapt the units if necessary. 
