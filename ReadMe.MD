@@ -1,4 +1,4 @@
-This repository contains scripts for enzyme kinetic parameters calculation.  
+This repository contains scripts for enzyme kinetic parameters calculation. Please cite [He et al. _Nature Communications_ 2024](https://doi.org/10.1038/s41467-024-53156-x).
 
 `kinecalc.py` is for Michaelis–Menten kinetics $v=\frac{Vmax*[S]}{Km+[S]}$.  
 
